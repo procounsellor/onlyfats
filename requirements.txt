@@ -11,5 +11,6 @@ python-multipart
 redis
 celery
 boto3
+google-cloud-storage
 email-validator
 python-dotenv

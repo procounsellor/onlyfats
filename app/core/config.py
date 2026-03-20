@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "FansOnly Backend"
     API_V1_PREFIX: str = "/api/v1"
 
+    GCS_BUCKET_NAME: str = "onlyfats-private-media"
+
     DATABASE_URL: str
 
     JWT_SECRET_KEY: str
