@@ -26,9 +26,3 @@ fansonly.sql
 cloud-sql-proxy
 README.md
 docker/
-firebase-sa-key.json
-uploads/
-.env
-.env.*
-venv/
-__pycache__/

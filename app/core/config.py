@@ -16,11 +16,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
+    FIREBASE_PROJECT_ID: str = "onlyfats"
+    FIREBASE_SA_KEY_PATH: str = ""  # optional path to service account JSON
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
+        case_sensitive=True,
     )
-
-
 settings = Settings()

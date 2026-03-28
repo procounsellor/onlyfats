@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
 from app.core.database import get_db
-from app.schemas.post import CreatePostRequest, AddPostMediaRequest
+from app.models.creator import Creator
+from app.schemas.post import CreatePostRequest, AddPostMediaRequest, UpdatePostRequest
 from app.services.post_service import (
     create_post,
     add_media_to_post,
@@ -11,9 +13,91 @@ from app.services.post_service import (
     get_creator_posts,
     get_single_post,
     get_feed,
+    has_active_subscription,
+    get_my_posts,
+    update_post,
+    delete_post,
 )
 
 router = APIRouter(tags=["Creator Posts"])
+
+
+@router.get("/creator/posts/me")
+async def get_my_creator_posts(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    try:
+        posts = await get_my_posts(db, current_user.id)
+        return {
+            "status": True,
+            "count": len(posts),
+            "data": [
+                {
+                    "post_id": p.id,
+                    "creator_id": p.creator_id,
+                    "caption": p.caption,
+                    "visibility": p.visibility,
+                    "media_type": p.media_type,
+                    "access_tier": p.access_tier,
+                    "status": p.status,
+                    "like_count": p.like_count,
+                    "comment_count": p.comment_count,
+                    "published_at": p.published_at.isoformat() if p.published_at else None,
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "media": [
+                        {
+                            "id": m.id,
+                            "media_kind": m.media_kind,
+                            "object_path": m.object_path,
+                            "thumbnail_object_path": m.thumbnail_object_path,
+                            "sort_order": m.sort_order,
+                        }
+                        for m in sorted(p.media_items, key=lambda x: x.sort_order)
+                    ],
+                }
+                for p in posts
+            ],
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/creator/posts/{post_id}")
+async def update_creator_post(
+    post_id: int,
+    request: UpdatePostRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    try:
+        post = await update_post(db, current_user.id, post_id, request)
+        return {
+            "status": True,
+            "message": "Post updated",
+            "data": {
+                "post_id": post.id,
+                "caption": post.caption,
+                "visibility": post.visibility,
+                "access_tier": post.access_tier,
+                "status": post.status,
+            },
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/creator/posts/{post_id}")
+async def delete_creator_post(
+    post_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    try:
+        await delete_post(db, current_user.id, post_id)
+        return {"status": True, "message": "Post deleted"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/creator/posts")
@@ -28,7 +112,8 @@ async def create_creator_post(
             current_user.id,
             request.caption,
             request.visibility,
-            request.media_type
+            request.media_type,
+            request.access_tier,
         )
         return {
             "status": True,
@@ -137,34 +222,17 @@ async def get_posts_feed(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    items = await get_feed(db, current_user.id, limit)
-    return {
-        "status": True,
-        "count": len(items),
-        "data": [
-            {
-                **item,
-                "media": [
-                    {
-                        "id": m.id,
-                        "media_kind": m.media_kind,
-                        "bucket_name": getattr(m, "bucket_name", None),
-                        "object_path": getattr(m, "object_path", None),
-                        "thumbnail_object_path": getattr(m, "thumbnail_object_path", None),
-                        "mime_type": getattr(m, "mime_type", None),
-                        "file_size_bytes": getattr(m, "file_size_bytes", None),
-                        "duration_seconds": getattr(m, "duration_seconds", None),
-                        "width": getattr(m, "width", None),
-                        "height": getattr(m, "height", None),
-                        "sort_order": getattr(m, "sort_order", None),
-                        "processing_status": getattr(m, "processing_status", None)
-                    }
-                    for m in item["media"]
-                ]
-            }
-            for item in items
-        ]
-    }
+    creator_id_filter = None
+    if current_user.role == "creator":
+        result = await db.execute(
+            select(Creator).where(Creator.user_id == current_user.id, Creator.is_active == True)
+        )
+        creator = result.scalar_one_or_none()
+        if creator:
+            creator_id_filter = creator.id
+
+    items = await get_feed(db, current_user.id, limit, creator_id_filter=creator_id_filter)
+    return items
 
 
 @router.get("/posts/{post_id}")
@@ -177,9 +245,11 @@ async def get_post_details(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
+    is_owner = post.creator is not None and post.creator.user_id == current_user.id
     has_access = (
         post.visibility == "public"
-        or post.creator.user_id == current_user.id
+        or is_owner
+        or await has_active_subscription(db, current_user.id, post.creator_id)
     )
 
     if not has_access:

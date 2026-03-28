@@ -13,6 +13,12 @@ class Creator(Base):
     display_name = Column(String(150), nullable=True)
     bio = Column(Text, nullable=True)
     profile_image_url = Column(Text, nullable=True)
+    header_image_url = Column(Text, nullable=True)
+    subscriber_count = Column(BigInteger, nullable=False, default=0)
+    post_count = Column(BigInteger, nullable=False, default=0)
+    total_likes = Column(BigInteger, nullable=False, default=0)
+    location = Column(String(100), nullable=True)
+    website_url = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
 
     created_at = Column(DateTime, nullable=False, server_default=func.now())

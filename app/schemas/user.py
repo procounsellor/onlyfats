@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 
@@ -11,3 +12,4 @@ class MeResponse(BaseModel):
     is_guest: bool
     is_active: bool
     is_email_verified: bool
+    profile_image_url: Optional[str] = None

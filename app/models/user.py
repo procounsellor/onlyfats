@@ -17,6 +17,9 @@ class User(Base, TimestampMixin):
     display_name: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # creator / visitor
 
+    bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    profile_image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
     is_guest: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

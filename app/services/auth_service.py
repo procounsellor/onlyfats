@@ -13,6 +13,7 @@ from app.core.security import (
     normalize_email,
     verify_password,
 )
+from app.models.creator import Creator
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import GuestLoginRequest, LoginRequest, RefreshRequest, SignupRequest
@@ -40,6 +41,17 @@ class AuthService:
         )
         db.add(user)
         await db.flush()
+
+        if payload.role == "creator":
+            db.add(Creator(
+                user_id=user.id,
+                display_name=user.display_name,
+                is_active=True,
+                subscriber_count=0,
+                post_count=0,
+                total_likes=0,
+            ))
+            await db.flush()
 
         access_token = create_access_token(str(user.id))
         refresh_token, token_hash, expires_at = create_refresh_token(str(user.id))
