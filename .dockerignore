@@ -1,4 +1,5 @@
 venv/
+firebase-sa-key.json
 __pycache__/
 .env
 .env.*

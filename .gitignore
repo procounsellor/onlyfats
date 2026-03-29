@@ -19,7 +19,6 @@ alembic/versions/*.pyc
 /dump.sql
 /alembic.ini
 
-.gitignore
 olddb.dump
 dump.sql
 fansonly.sql
@@ -28,7 +27,4 @@ README.md
 docker/
 firebase-sa-key.json
 uploads/
-.env
-.env.*
-venv/
-__pycache__/
+test_api.py
